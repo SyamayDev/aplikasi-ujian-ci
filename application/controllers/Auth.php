@@ -1,80 +1,119 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Auth extends MY_Controller {
+class Auth extends CI_Controller
+{
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
-        $this->load->model('User_model');
+        $this->load->model('Admin_model');
+        $this->load->model('Guru_model');
+        $this->load->model('Siswa_model');
+        $this->load->helper('ujian');
+        $this->load->library('form_validation');
     }
 
-    public function login() {
-        // If user is already logged in, redirect to their dashboard
-        $this->is_logged_in();
+    public function admin_login()
+    {
+        check_already_login(); // Keep the check to prevent already logged in users from seeing login
+        $data['target_role'] = 'admin';
+        $this->load->view('auth/login', $data);
+    }
 
-        $this->form_validation->set_rules('username', 'Username atau NIS', 'required|trim');
-        $this->form_validation->set_rules('password', 'Password', 'required|trim');
+    public function guru_login()
+    {
+        check_already_login(); // Keep the check
+        $data['target_role'] = 'guru';
+        $this->load->view('auth/login', $data);
+    }
+
+    public function siswa_login()
+    {
+        check_already_login(); // Keep the check
+        $data['target_role'] = 'siswa';
+        $this->load->view('auth/login', $data);
+    }
+
+    public function process()
+    {
+        $this->form_validation->set_rules('username', 'Username / NISN', 'trim|required');
+        $this->form_validation->set_rules('password', 'Password', 'trim|required');
+
+        $target_role = $this->input->post('target_role');
 
         if ($this->form_validation->run() == FALSE) {
-            $this->load->view('auth/login', $this->data);
+            $this->session->set_flashdata('error', validation_errors());
+            redirect($target_role ? $target_role : 'auth/siswa_login'); // Redirect to specific login or default
         } else {
             $username = $this->input->post('username');
             $password = $this->input->post('password');
+            $pass_md5 = md5($password);
 
-            // Try logging in as admin or guru first
-            $user = $this->User_model->check_login_staff($username, $password);
+            $authenticated = FALSE;
 
-            // If not admin/guru, try logging in as siswa using NIS
-            if (!$user) {
-                // For now, siswa login logic is separate. User requested NISN login.
-                // Assuming the 'username' field can be NIS
-                $user = $this->User_model->check_login_siswa($username, $password);
-            }
-            
-            // In the final version, the siswa password check will also use MD5
-            // For now, let's unify the logic
-            if(!$user) {
-                $siswa_user = $this->User_model->get_user_by_nis($username);
-                if ($siswa_user && $siswa_user->role === 'siswa' && $siswa_user->password === md5($password)) {
-                    $user = $siswa_user;
-                }
-            }
+            // Destroy session before attempting new login to prevent role mix
+            $this->session->sess_destroy();
 
-
-            if ($user) {
-                $session_data = [
-                    'user_id' => $user->id,
-                    'username' => $user->username ?: $user->nis,
-                    'nama_lengkap' => $user->nama_lengkap,
-                    'role' => $user->role,
-                    'is_logged_in' => TRUE
-                ];
-                $this->session->set_userdata('user', $session_data);
-                $this->session->set_userdata('role', $user->role);
-
-
-                switch ($user->role) {
-                    case 'admin':
+            switch ($target_role) {
+                case 'admin':
+                    $admin = $this->Admin_model->getAdminByUsername($username);
+                    if ($admin && $pass_md5 == $admin['password_md5']) {
+                        $session_data = [
+                            'user_id'  => $admin['id'],
+                            'nama'     => $admin['nama'],
+                            'role'     => 'admin',
+                        ];
+                        $this->session->set_userdata($session_data);
+                        $authenticated = TRUE;
                         redirect('admin');
-                        break;
-                    case 'guru':
+                    }
+                    break;
+                case 'guru':
+                    $guru = $this->Guru_model->getGuruByUsername($username);
+                    if ($guru && $pass_md5 == $guru['password_md5']) {
+                        $session_data = [
+                            'user_id'  => $guru['id'],
+                            'nama'     => $guru['nama'],
+                            'role'     => 'guru',
+                        ];
+                        $this->session->set_userdata($session_data);
+                        $authenticated = TRUE;
                         redirect('guru');
-                        break;
-                    case 'siswa':
+                    }
+                    break;
+                case 'siswa':
+                    $siswa = $this->Siswa_model->getSiswaByNisn($username);
+                    if ($siswa && $pass_md5 == $siswa['password_md5']) {
+                        $session_data = [
+                            'user_id'  => $siswa['id'],
+                            'kelas_id' => $siswa['kelas_id'],
+                            'nama'     => $siswa['nama'],
+                            'role'     => 'siswa',
+                        ];
+                        $this->session->set_userdata($session_data);
+                        $authenticated = TRUE;
                         redirect('siswa');
-                        break;
-                }
-            } else {
-                $this->session->set_flashdata('error', 'Username/NIS atau Password salah!');
-                redirect('auth/login');
+                    }
+                    break;
+            }
+
+            if (!$authenticated) {
+                $this->session->set_flashdata('error', 'Username/NISN atau Password salah!');
+                redirect($target_role ? $target_role : 'auth/siswa_login');
             }
         }
     }
 
-    public function logout() {
-        $this->session->unset_userdata('user');
-        $this->session->unset_userdata('role');
-        $this->session->set_flashdata('success', 'Anda telah berhasil logout.');
-        redirect('auth/login');
+    public function logout()
+    {
+        $this->session->sess_destroy();
+        redirect('auth/siswa_login'); // Redirect to siswa login after logout
+    }
+
+    public function blocked()
+    {
+        $this->load->view('auth/blocked');
     }
 }
+

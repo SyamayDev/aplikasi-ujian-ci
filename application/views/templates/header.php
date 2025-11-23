@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0v4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous">
     <!-- SweetAlert2 CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" integrity="sha256-2m+0H7O8eN0ZrdIdI8i0hXgqH0H1+mc2W4xQ64QfOSQ=" crossorigin="anonymous">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <!-- CSS untuk Fitur Islami -->
     <link rel="stylesheet" href="<?= base_url('assets/css/fitur_islami.css') ?>">
     <!-- DataTables CSS (opsional, hanya jika digunakan di halaman tertentu) -->
@@ -131,3 +133,11 @@
 </head>
 
 <body></body>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(function() {
+        if ($('.select2').length) $('.select2').select2({
+            width: '100%'
+        });
+    });
+</script>

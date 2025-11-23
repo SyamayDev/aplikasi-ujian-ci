@@ -1,0 +1,107 @@
+/* Custom styles for admin panel */
+body {
+	background-color: #f4f6f9;
+}
+.sidebar-header {
+	background: #28a745;
+}
+#sidebar {
+	width: 250px;
+}
+#sidebar .nav-link {
+	color: rgba(255, 255, 255, 0.9);
+}
+#sidebar .nav-link:hover {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.03);
+}
+.offcanvas .nav-link {
+	color: rgba(255, 255, 255, 0.95);
+}
+.card-stat {
+	border-left: 4px solid #28a745;
+}
+.table-actions .btn {
+	margin-right: 6px;
+}
+.table-responsive table td,
+.table-responsive table th {
+	vertical-align: middle;
+}
+.small-muted {
+	color: #6c757d;
+}
+.btn-ghost {
+	background: transparent;
+	border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Mobile tweaks */
+@media (max-width: 991.98px) {
+	#sidebar {
+		display: none;
+	}
+}
+
+/* Force readable colors on dark sidebar/offcanvas */
+.offcanvas .nav-link {
+	color: rgba(255, 255, 255, 0.95) !important;
+}
+#sidebar .nav-link {
+	color: rgba(255, 255, 255, 0.92) !important;
+}
+#sidebar .text-muted {
+	color: rgba(255, 255, 255, 0.7) !important;
+}
+.offcanvas .text-muted {
+	color: rgba(255, 255, 255, 0.7) !important;
+}
+.dropdown-menu {
+	min-width: 160px;
+}
+.dropdown-menu a {
+	color: #212529 !important;
+}
+.nav-link .bi {
+	vertical-align: -0.125em;
+}
+
+/* Dashboard quick card tweaks */
+.card-stat h3 {
+	font-weight: 700;
+}
+.card-stat .bi {
+	font-size: 2.2rem;
+}
+
+/* Ujian execute improvements */
+.soal-container {
+	border-bottom: 1px solid #e9ecef;
+}
+.soal-container h5 {
+	font-weight: 600;
+}
+.ujian-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.ujian-timer {
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: #dc3545;
+}
+.soal-image {
+	max-height: 280px;
+	object-fit: contain;
+}
+
+@media (max-width: 576px) {
+	.soal-image {
+		max-height: 160px;
+	}
+	.ujian-timer {
+		font-size: 1rem;
+	}
+}

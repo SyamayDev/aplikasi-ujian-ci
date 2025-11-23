@@ -24,6 +24,12 @@
         <a class="list-group-item list-group-item-action p-3" href="<?= base_url('admin/kelola_siswa') ?>">
             <i class="fas fa-users-cog fa-fw me-2"></i>Kelola Siswa
         </a>
+        <a class="list-group-item list-group-item-action p-3" href="<?= base_url('paket') ?>">
+            <i class="fas fa-file-upload fa-fw me-2"></i>Manajemen Paket Soal
+        </a>
+        <a class="list-group-item list-group-item-action p-3" href="<?= base_url('room') ?>">
+            <i class="fas fa-door-open fa-fw me-2"></i>Manajemen Room
+        </a>
         <a class="list-group-item list-group-item-action p-3" href="<?= base_url('admin/kelola_admin') ?>">
             <i class="fas fa-users fa-fw me-2"></i>Kelola Admin
         </a>

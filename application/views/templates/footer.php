@@ -3,6 +3,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
 <script>
+    var base_url = '<?= base_url() ?>';
     if (typeof jQuery === 'undefined') {
         console.error('jQuery is not loaded. Please ensure jQuery is included.');
     } else {
@@ -26,6 +27,7 @@
                     timer: 1500
                 });
             <?php endif; ?>
+
             function toggleSidebar(e) {
                 e.preventDefault();
                 jQuery("#wrapper").toggleClass("toggled");
@@ -38,5 +40,7 @@
         });
     }
 </script>
+<script src="<?= base_url('assets/js/ujian.js') ?>"></script>
 </body>
+
 </html>

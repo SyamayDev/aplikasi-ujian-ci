@@ -9,63 +9,10 @@ class Siswa extends CI_Controller
         $this->load->model('Siswa_model');
     }
 
-    public function login()
-    {
-        if ($this->session->userdata('nis')) {
-            redirect('siswa/beranda');
-        }
-        $this->load->helper('form');
-        $data['error'] = $this->session->flashdata('error');
-        $data['kelas_list'] = $this->Siswa_model->get_all_kelas_jurusan();
-        $this->load->view('templates/header');
-        $this->load->view('siswa/login', $data);
-        $this->load->view('templates/footer');
-    }
-
-    public function do_login()
-    {
-        $this->load->library('form_validation');
-        $this->load->helper('form');
-
-        $this->form_validation->set_rules('nis', 'NIS', 'required|trim');
-        $this->form_validation->set_rules('nama', 'Nama Lengkap', 'required|trim');
-        $this->form_validation->set_rules('kelas', 'Kelas Saat Ini', 'required');
-        $this->form_validation->set_message('required', '{field} wajib diisi.');
-
-        if ($this->form_validation->run() == FALSE) {
-            // Jika validasi gagal (ada field kosong), tampilkan kembali form login
-            // Data input akan terisi otomatis oleh fungsi set_value() di view
-            $data['kelas_list'] = $this->Siswa_model->get_all_kelas_jurusan();
-            $this->load->view('templates/header');
-            $this->load->view('siswa/login', $data);
-            $this->load->view('templates/footer');
-        } else {
-            // Validasi form sukses, sekarang cek kredensial
-            $nis = strtoupper(trim($this->input->post('nis')));
-            $nama = trim($this->input->post('nama'));
-            $kelas = $this->input->post('kelas');
-
-            $user = $this->Siswa_model->get_siswa_by_nis($nis);
-
-            if ($user && strtolower($user['nama']) === strtolower($nama)) {
-                // Kredensial benar, login berhasil
-                $this->session->set_userdata(['nis' => $user['nis'], 'nama' => $user['nama'], 'kelas' => $kelas]);
-                redirect('siswa/beranda');
-            } else {
-                // Kredensial salah, tampilkan kembali form dengan pesan error
-                $data['error'] = 'NIS atau Nama tidak cocok. Silakan coba lagi.';
-                $data['kelas_list'] = $this->Siswa_model->get_all_kelas_jurusan();
-                $this->load->view('templates/header');
-                $this->load->view('siswa/login', $data);
-                $this->load->view('templates/footer');
-            }
-        }
-    }
-
     public function beranda()
     {
         if (!$this->session->userdata('nis')) {
-            redirect('siswa/login');
+            redirect('auth/siswa_login');
         }
         $this->load->view('templates/header');
         $this->load->view('siswa/beranda');
@@ -75,7 +22,7 @@ class Siswa extends CI_Controller
     public function quran()
     {
         if (!$this->session->userdata('nis')) {
-            redirect('siswa/login');
+            redirect('auth/siswa_login');
         }
         $this->load->view('templates/header', ['title' => 'Al-Qur\'an Digital']);
         $this->load->view('siswa/quran');
@@ -84,7 +31,7 @@ class Siswa extends CI_Controller
     public function jadwal_sholat()
     {
         if (!$this->session->userdata('nis')) {
-            redirect('siswa/login');
+            redirect('auth/siswa_login');
         }
         $this->load->view('templates/header', ['title' => 'Jadwal Sholat']);
         $this->load->view('siswa/jadwal_sholat');
@@ -93,7 +40,7 @@ class Siswa extends CI_Controller
     public function kalkulator()
     {
         if (!$this->session->userdata('nis')) {
-            redirect('siswa/login');
+            redirect('auth/siswa_login');
         }
         $this->load->view('templates/header', ['title' => 'Kalkulator']);
         $this->load->view('siswa/kalkulator');
@@ -353,11 +300,5 @@ class Siswa extends CI_Controller
         $a = sin($dLat / 2) * sin($dLat / 2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) * sin($dLon / 2);
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         return $earthRadius * $c;
-    }
-
-    public function logout()
-    {
-        $this->session->sess_destroy();
-        redirect('siswa/login');
     }
 }
