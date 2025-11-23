@@ -1,0 +1,310 @@
+var app = new Vue({
+    el: '#app',
+    data: {
+        allSurahs: [],
+        detail: {},
+        ayats: [],
+        loading: false,
+        loading2: false,
+        audioUrl: '',
+        surahAudio: null,
+        surahAudioPlaying: false,
+        surahAudioCurrent: 0,
+        surahAudioDuration: 0,
+        currentAudio: null,
+        currentAudioIndex: null,
+        isPlaying: false,
+        copiedAyats: {},
+        lastRead: null,
+        bookmarkedSurahs: {},
+        showFavorites: false,
+        searchQuery: '',
+        currentPage: 1,
+        itemsPerPage: 12,
+        showVoicePopup: false,
+        voiceText: '',
+        showShareOptions: {},
+        shareText: {},
+        detailModalInstance: null // Tambahkan properti untuk menyimpan instance modal
+    },
+    computed: {
+        filteredSurahs() {
+            let filtered = this.allSurahs;
+            if (this.showFavorites) filtered = filtered.filter(s => this.isSurahBookmarked(s.nomor));
+            if (this.searchQuery) {
+                const query = this.searchQuery.toLowerCase().replace(/[\s-]/g, '');
+                filtered = filtered.filter(s => {
+                    const namaLatinNormalized = s.nama_latin.toLowerCase().replace(/[\s-]/g, '');
+                    const namaNormalized = s.nama.toLowerCase().replace(/[\s-]/g, '');
+                    const artiNormalized = s.arti.toLowerCase().replace(/[\s-]/g, '');
+                    return (
+                        namaLatinNormalized.includes(query) ||
+                        namaNormalized.includes(query) ||
+                        artiNormalized.includes(query)
+                    );
+                });
+            }
+            return filtered;
+        },
+        totalPages() { return Math.ceil(this.filteredSurahs.length / this.itemsPerPage); },
+        paginatedSurahs() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredSurahs.slice(start, end);
+        },
+        currentIndex() { return this.filteredSurahs.findIndex(s => s.nomor == this.detail.nomor); },
+        hasPrev() { return this.currentIndex > 0; },
+        hasNext() { return this.currentIndex >= 0 && this.currentIndex < this.filteredSurahs.length - 1; }
+    },
+    methods: {
+        refreshPage() { window.location.reload(); },
+        padNumber(num, digits) { return num.toString().padStart(digits, '0'); },
+        getDetail(nomorSurah) {
+            this.loading2 = true;
+            this.$http.get(`https://equran.id/api/surat/${nomorSurah}`).then(response => {
+                let res = response.body;
+                this.detail = {
+                    nomor: res.nomor,
+                    nama: res.nama,
+                    nama_latin: res.nama_latin,
+                    asma: res.nama_latin, // asma is used in share text
+                    arti: res.arti,
+                    type: res.tempat_turun,
+                    keterangan: res.deskripsi || ""
+                };
+                let rawAyats = res.ayat || [];
+                this.$http.get(`https://api.alquran.cloud/v1/surah/${nomorSurah}/ar.alafasy`).then(audioResponse => {
+                    let audioData = audioResponse.body.data;
+                    this.ayats = rawAyats.map((a, index) => {
+                        let audioUrl = audioData.ayahs[index].audio;
+                        return {
+                            nomor: a.nomor,
+                            ar: a.ar,
+                            tr: a.tr,
+                            id: a.idn,
+                            audio: audioUrl
+                        };
+                    });
+                    this.audioUrl = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${nomorSurah}.mp3`;
+                    this.initSurahAudio();
+                    this.loading2 = false;
+                }).catch(err => {
+                    console.error('Error mengambil data audio:', err);
+                    this.ayats = rawAyats.map(a => ({
+                        nomor: a.nomor,
+                        ar: a.ar,
+                        tr: a.tr,
+                        id: a.idn,
+                        audio: null
+                    }));
+                    this.audioUrl = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${nomorSurah}.mp3`;
+                    this.initSurahAudio();
+                    this.loading2 = false;
+                });
+            }).catch(err => {
+                console.error('Error mengambil detail surah:', err);
+                this.loading2 = false;
+            });
+        },
+        openDetailModal(nomorSurah) {
+            this.getDetail(nomorSurah);
+            if (this.detailModalInstance) {
+                this.detailModalInstance.show();
+            }
+        },
+        initSurahAudio() {
+            if (this.surahAudio) this.surahAudio.pause();
+            this.surahAudio = new Audio(this.audioUrl);
+            this.surahAudio.addEventListener('loadedmetadata', () => { this.surahAudioDuration = this.surahAudio.duration; });
+            this.surahAudio.addEventListener('timeupdate', () => { this.surahAudioCurrent = this.surahAudio.currentTime; });
+            this.surahAudio.addEventListener('ended', () => { this.surahAudioPlaying = false; });
+        },
+        toggleSurahAudio() {
+            if (!this.surahAudio) return;
+            if (this.surahAudioPlaying) {
+                this.surahAudio.pause();
+                this.surahAudioPlaying = false;
+            } else {
+                this.surahAudio.play();
+                this.surahAudioPlaying = true;
+            }
+        },
+        rewindSurahAudio() { if (this.surahAudio) this.surahAudio.currentTime = Math.max(0, this.surahAudio.currentTime - 5); },
+        forwardSurahAudio() { if (this.surahAudio) this.surahAudio.currentTime = Math.min(this.surahAudioDuration, this.surahAudio.currentTime + 5); },
+        seekSurahAudio(e) { if (this.surahAudio) this.surahAudio.currentTime = e.target.value; },
+        formatTime(sec) {
+            let m = Math.floor(sec / 60);
+            let s = Math.floor(sec % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        },
+        togglePlay(item, idx) {
+            if (this.currentAudio && this.currentAudioIndex === idx) {
+                if (this.isPlaying) {
+                    this.currentAudio.pause();
+                    this.isPlaying = false;
+                } else {
+                    this.currentAudio.play();
+                    this.isPlaying = true;
+                }
+            } else {
+                if (this.currentAudio) this.currentAudio.pause();
+                this.currentAudio = new Audio(item.audio);
+                this.currentAudioIndex = idx;
+                this.isPlaying = true;
+                this.currentAudio.onended = () => {
+                    let nextIdx = idx + 1;
+                    if (nextIdx < this.ayats.length) this.togglePlay(this.ayats[nextIdx], nextIdx);
+                    else { this.isPlaying = false; this.currentAudio = null; this.currentAudioIndex = null; }
+                };
+                this.currentAudio.play().catch(err => {
+                    console.error('Error playing audio:', err);
+                    this.isPlaying = false;
+                });
+                let t = document.getElementById(`ayat-${item.nomor}`);
+                if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        },
+        shareAyat(ayat) {
+            const shareText = `Surat ${this.detail.asma} - Ayat ${ayat.nomor}\n\nArab: ${ayat.ar}\n\nLatin: ${ayat.tr}\n\nTerjemahan: ${ayat.id}\n\n(Dibagikan dari Al-Qur'an Digital)`;
+            if (navigator.share) {
+                navigator.share({
+                    title: `Surat ${this.detail.asma} - Ayat ${ayat.nomor}`,
+                    text: shareText
+                }).catch((error) => console.error('Error sharing:', error));
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert('Teks ayat telah disalin ke clipboard.');
+                }).catch(err => {
+                    console.error('Gagal menyalin teks:', err);
+                });
+            }
+        },
+        isAyatBookmarked(surahNumber, ayatNumber) {
+            return this.lastRead && this.lastRead.surahNumber === surahNumber && this.lastRead.ayatNumber === ayatNumber;
+        },
+        toggleAyatBookmark(ayat) {
+            if (this.isAyatBookmarked(this.detail.nomor, ayat.nomor)) {
+                this.lastRead = null;
+            } else {
+                this.lastRead = {
+                    surahNumber: this.detail.nomor,
+                    surahName: this.detail.nama_latin,
+                    ayatNumber: ayat.nomor,
+                };
+            }
+            this.saveBookmarks();
+        },
+        goToLastRead() {
+            if (this.lastRead) {
+                this.openDetailModal(this.lastRead.surahNumber);
+                this.$nextTick(() => {
+                    setTimeout(() => {
+                        const ayatElement = document.getElementById(`ayat-${this.lastRead.ayatNumber}`);
+                        if (ayatElement) {
+                            ayatElement.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                    }, 500);
+                });
+            }
+        },
+        clearLastRead() {
+            this.lastRead = null;
+            this.saveBookmarks();
+        },
+        isSurahBookmarked(surahNumber) { return !!this.bookmarkedSurahs[surahNumber]; },
+        toggleSurahBookmark(surah) {
+            if (this.isSurahBookmarked(surah.nomor)) {
+                this.$delete(this.bookmarkedSurahs, surah.nomor);
+            } else {
+                this.$set(this.bookmarkedSurahs, surah.nomor, surah);
+            }
+            this.saveBookmarks();
+        },
+        filterSurahs() { this.currentPage = 1; },
+        previousPage() { if (this.currentPage > 1) this.currentPage--; },
+        nextPage() { if (this.currentPage < this.totalPages) this.currentPage++; },
+        prevSurah() { if (this.hasPrev) this.getDetail(this.filteredSurahs[this.currentIndex - 1].nomor); },
+        nextSurah() { if (this.hasNext) this.getDetail(this.filteredSurahs[this.currentIndex + 1].nomor); },
+        toggleShowFavorites() { this.showFavorites = !this.showFavorites; this.currentPage = 1; },
+        startVoiceSearch() {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert('Browser Anda tidak mendukung fitur pencarian suara.');
+                return;
+            }
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            this.showVoicePopup = true;
+            this.voiceText = 'Mendengarkan...';
+
+            recognition.onresult = (event) => {
+                const interimTranscript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                this.voiceText = interimTranscript || 'Mendengarkan...';
+                if (event.results[0].isFinal) {
+                    this.searchQuery = event.results[0][0].transcript;
+                    this.filterSurahs();
+                    this.showVoicePopup = false;
+                }
+            };
+            recognition.onend = () => {
+                if (this.voiceText === 'Mendengarkan...') {
+                    this.voiceText = 'Tidak ada suara terdeteksi';
+                }
+                setTimeout(() => { this.showVoicePopup = false; }, 1000);
+            };
+            recognition.onerror = (event) => {
+                this.voiceText = 'Error: ' + event.error;
+                setTimeout(() => { this.showVoicePopup = false; }, 1000);
+                console.error('Voice recognition error:', event.error);
+            };
+            recognition.start();
+        },
+        loadBookmarks() {
+            const savedBookmarks = localStorage.getItem('bookmarkedSurahs');
+            const savedLastRead = localStorage.getItem('lastRead');
+            if (savedBookmarks) {
+                this.bookmarkedSurahs = JSON.parse(savedBookmarks);
+            }
+            if (savedLastRead) {
+                this.lastRead = JSON.parse(savedLastRead);
+            }
+        },
+        saveBookmarks() {
+            localStorage.setItem('bookmarkedSurahs', JSON.stringify(this.bookmarkedSurahs));
+            localStorage.setItem('lastRead', JSON.stringify(this.lastRead));
+        }
+    },
+    mounted() {
+        this.loadBookmarks();
+        this.loading = true;
+        this.$http.get('https://equran.id/api/surat').then(res => {
+            this.allSurahs = res.body;
+            this.loading = false;
+        }).catch(err => {
+            console.error('error', err);
+            this.loading = false;
+        });
+
+        // Inisialisasi modal sekali saat komponen dimuat
+        const detailModalEl = document.getElementById('detailModal');
+        this.detailModalInstance = new bootstrap.Modal(detailModalEl, {
+            backdrop: false // Anda bisa meletakkan opsi di sini juga
+        });
+        if (detailModalEl) {
+            detailModalEl.addEventListener('hidden.bs.modal', () => {
+                if (this.surahAudio) this.surahAudio.pause();
+                if (this.currentAudio) this.currentAudio.pause();
+                this.surahAudioPlaying = false;
+                this.isPlaying = false;
+                this.currentAudio = null;
+                this.currentAudioIndex = null;
+                this.showShareOptions = {};
+                this.shareText = {};
+            });
+        }
+    }
+});
